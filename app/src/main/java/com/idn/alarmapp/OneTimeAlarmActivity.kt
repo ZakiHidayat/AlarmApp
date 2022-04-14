@@ -6,13 +6,21 @@ import android.view.View
 import com.idn.alarmapp.databinding.ActivityMainBinding
 import com.idn.alarmapp.fragment.DatePickerFragment
 import com.idn.alarmapp.fragment.TimePickerFragment
+import com.idn.alarmapp.room.Alarm
+import com.idn.alarmapp.room.AlarmDB
 import kotlinx.android.synthetic.main.activity_one_time_alarm.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
-class OneTimeAlarmActivity : AppCompatActivity() , View.OnClickListener, DatePickerFragment.DialogDateListener, TimePickerFragment.DialogTimeListener{
+class OneTimeAlarmActivity : AppCompatActivity(),View.OnClickListener, DatePickerFragment.DialogDateListener, TimePickerFragment.DialogTimeListener{
 
-//    private var binding: ActivityMainBinding? = null
-//    private lateinit var alarmReceiver: AlarmReceiver
-//    private val db by lazy {AlarmDB (this)}
+    private var binding: ActivityMainBinding? = null
+    private lateinit var alarmReceiver: AlarmReceiver
+    private val db by lazy {AlarmDB (this)}
+
 
     companion object {
         private const val DATE_PICKER_TAG = "DatePicker"
@@ -21,34 +29,87 @@ class OneTimeAlarmActivity : AppCompatActivity() , View.OnClickListener, DatePic
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(R.layout.activity_one_time_alarm)
 
         btn_set_date_one_time.setOnClickListener(this)
         btn_set_time_one_time.setOnClickListener(this)
-//        btn_add_set_one_time_alarm.setOnClickListener(this)
-//        btn_cancel_set_one_time_alarm.setOnClickListener(this)
-//
-//        alarmReceiver = AlarmReceiver()
+        btn_add_set_one_time_alarm.setOnClickListener(this)
+        btn_cancel_set_one_time_alarm.setOnClickListener(this)
+
+        alarmReceiver = AlarmReceiver()
     }
 
-    override fun onClick(v: View?) {
-        when(v?.id){
+    override fun onClick(v: View) {
+        when(v.id){
             R.id.btn_set_date_one_time -> {
                 val datePickerFragment = DatePickerFragment()
                 datePickerFragment.show(supportFragmentManager, DATE_PICKER_TAG)
             }
+
             R.id.btn_set_time_one_time -> {
                 val timePickerFragmentOneTime = TimePickerFragment()
                 timePickerFragmentOneTime.show(supportFragmentManager, TIME_PICKER_ONCE_TAG)
             }
+
+            R.id.btn_add_set_one_time_alarm -> {
+                val onceDate = tv_once_date.text.toString()
+                val onceTime = tv_once_time.text.toString()
+                val onceMessage = et_note_one_time.text.toString()
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    db.alarmDao().addAlarm(
+                        Alarm(0, onceTime, onceDate, onceMessage, AlarmReceiver.TYPE_ONE_TIME)
+                    )
+
+                    finish()
+                }
+
+                alarmReceiver.setOneTimeAlarm(this, AlarmReceiver.TYPE_ONE_TIME,
+                    onceDate,
+                    onceTime,
+                    onceMessage)
+
+
+            }
+
+            R.id.btn_cancel_set_one_time_alarm -> {
+                finish()
+            }
+        }
     }
-   }
+
 
     override fun onDialogDateSet(tag: String?, year: Int, month: Int, dayOfMonth: Int) {
-        TODO("Not yet implemented")
+        // Siapkan date formatter-nya terlebih dahulu
+        val calendar = Calendar.getInstance()
+        calendar.set(year, month, dayOfMonth)
+        val dateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
+
+        // Set text dari textview once
+        tv_once_date.text = dateFormat.format(calendar.time)
     }
 
     override fun onDialogTimeSet(tag: String?, hourOfDay: Int, minute: Int) {
-        TODO("Not yet implemented")
+        // Siapkan time formatter-nya terlebih dahulu
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+        calendar.set(Calendar.MINUTE, minute)
+
+        val dateFormatOneTime = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+        // Set text dari textview berdasarkan tag
+        when (tag) {
+            TIME_PICKER_ONCE_TAG -> tv_once_time.text = dateFormatOneTime.format(calendar.time)
+            else -> {
+            }
+        }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        binding = null
+    }
+
 }
